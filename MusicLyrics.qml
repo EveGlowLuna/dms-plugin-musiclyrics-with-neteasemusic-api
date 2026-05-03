@@ -55,7 +55,7 @@ PluginComponent {
         readonly property int navidrome: 1
         readonly property int lrclib: 2
         readonly property int cache: 3
-        readonly property int musixmatch: 4
+        readonly property int netease: 4
     }
 
     // -------------------------------------------------------------------------
@@ -72,7 +72,7 @@ PluginComponent {
     // Chip status properties
     property int navidromeStatus: status.none
     property int lrclibStatus: status.none
-    property int musixmatchStatus: status.none
+    property int neteaseStatus: status.none
     property int cacheStatus: status.none
 
     // Fetch state and source
@@ -126,16 +126,10 @@ PluginComponent {
         currentLineIndex = -1;
         navidromeStatus = status.none;
         lrclibStatus = status.none;
-        musixmatchStatus = status.none;
+        neteaseStatus = status.none;
         cacheStatus = status.none;
         lyricStatus = lyricState.loading;
         lyricSource = lyricSrc.none;
-    }
-
-    // Sets the "no synced lyrics" state, used by musixmatch handlers
-    function _setMusixmatchNotFound(musixmatchStatusVal) {
-        musixmatchStatus = musixmatchStatusVal;
-        _fetchFromLrclib(_lastFetchedTrack, _lastFetchedArtist);
     }
 
     // Sets the final "no synced lyrics" state after all sources exhausted
@@ -294,7 +288,7 @@ PluginComponent {
             } else {
                 navidromeStatus = status.skippedConfig;
                 console.info("[MusicLyrics] Navidrome: skipped (not configured)");
-                _fetchFromMusixmatch(capturedTitle, capturedArtist);
+                _fetchFromNetease(capturedTitle, capturedArtist);
             }
         }
 
@@ -310,7 +304,7 @@ PluginComponent {
                     root.cacheStatus = status.cacheHit;
                     root.navidromeStatus = status.skippedFound;
                     root.lrclibStatus = status.skippedFound;
-                    root.musixmatchStatus = status.skippedFound;
+                    root.neteaseStatus = status.skippedFound;
                     console.info("[MusicLyrics] ✓ Cache: lyrics loaded for \"" + capturedTitle + "\" (" + cached.lines.length + " lines)");
                     return;
                 }
@@ -429,7 +423,7 @@ PluginComponent {
             if (rawData.length === 0) {
                 root.navidromeStatus = status.error;
                 console.warn("[MusicLyrics] Navidrome: empty search response (HTTP " + httpStatus + ")");
-                root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                root._fetchFromNetease(expectedTitle, expectedArtist);
                 return;
             }
             try {
@@ -438,7 +432,7 @@ PluginComponent {
                 if (!songs || songs.length === 0) {
                     root.navidromeStatus = status.notFound;
                     console.info("[MusicLyrics] ✗ Navidrome: no matching songs found for \"" + expectedTitle + "\"");
-                    root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                    root._fetchFromNetease(expectedTitle, expectedArtist);
                     return;
                 }
 
@@ -457,12 +451,12 @@ PluginComponent {
                 root.navidromeStatus = status.error;
                 console.warn("[MusicLyrics] Navidrome: failed to parse search response — " + e);
                 console.warn("[MusicLyrics] Navidrome: raw data: " + rawData.substring(0, 200));
-                root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                root._fetchFromNetease(expectedTitle, expectedArtist);
             }
         }, function (errMsg) {
             root.navidromeStatus = status.error;
             console.warn("[MusicLyrics] Navidrome: search request failed — " + errMsg);
-            root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+            root._fetchFromNetease(expectedTitle, expectedArtist);
         });
     }
 
@@ -476,7 +470,7 @@ PluginComponent {
             if (rawData.length === 0) {
                 root.navidromeStatus = status.error;
                 console.warn("[MusicLyrics] Navidrome: empty lyrics response (HTTP " + httpStatus + ")");
-                root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                root._fetchFromNetease(expectedTitle, expectedArtist);
                 return;
             }
             try {
@@ -485,7 +479,7 @@ PluginComponent {
                 if (!lyricsList || lyricsList.length === 0) {
                     root.navidromeStatus = status.notFound;
                     console.info("[MusicLyrics] ✗ Navidrome: no lyrics available for \"" + expectedTitle + "\"");
-                    root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                    root._fetchFromNetease(expectedTitle, expectedArtist);
                     return;
                 }
 
@@ -512,7 +506,7 @@ PluginComponent {
                     root.lyricStatus = lyricState.synced;
                     root.lyricSource = lyricSrc.navidrome;
                     root.lrclibStatus = status.skippedFound;
-                    root.musixmatchStatus = status.skippedFound;
+                    root.neteaseStatus = status.skippedFound;
                     console.info("[MusicLyrics] ✓ Navidrome: synced lyrics found (" + lines.length + " lines) for \"" + expectedTitle + "\"");
                     root._cancelActiveFetch = null;
                     if (root.cachingEnabled)
@@ -520,22 +514,22 @@ PluginComponent {
                 } else if (unsynced && unsynced.line) {
                     root.navidromeStatus = status.skippedPlain;
                     console.info("[MusicLyrics] ✗ Navidrome: only plain lyrics found for \"" + expectedTitle + "\" (skipping, synced only)");
-                    root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                    root._fetchFromNetease(expectedTitle, expectedArtist);
                 } else {
                     root.navidromeStatus = status.notFound;
                     console.info("[MusicLyrics] ✗ Navidrome: lyrics structure empty for \"" + expectedTitle + "\"");
-                    root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                    root._fetchFromNetease(expectedTitle, expectedArtist);
                 }
             } catch (e) {
                 root.navidromeStatus = status.error;
                 console.warn("[MusicLyrics] Navidrome: failed to parse lyrics response — " + e);
                 console.warn("[MusicLyrics] Navidrome: raw data: " + rawData.substring(0, 200));
-                root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+                root._fetchFromNetease(expectedTitle, expectedArtist);
             }
         }, function (errMsg) {
             root.navidromeStatus = status.error;
             console.warn("[MusicLyrics] Navidrome: lyrics request failed — " + errMsg);
-            root._fetchFromMusixmatch(expectedTitle, expectedArtist);
+            root._fetchFromNetease(expectedTitle, expectedArtist);
         });
     }
 
@@ -600,193 +594,184 @@ PluginComponent {
     }
 
     // -------------------------------------------------------------------------
-    // Musixmatch fetch
+    // NetEase Cloud Music (网易云音乐) fetch
     // -------------------------------------------------------------------------
 
-    property string _musixmatchToken: pluginData.musixmatchToken ?? ""
+    // NetEase search uses POST with form-encoded body.
+    // The lyrics endpoint is a plain GET and returns LRC in data.lrc.lyric.
+    // Both endpoints require Referer: https://music.163.com to avoid 403s.
 
-    function _musixmatchHeaders() {
+    function _neteaseHeaders() {
         return {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
-            "Accept": "application/json",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Origin": "https://www.musixmatch.com",
-            "Referer": "https://www.musixmatch.com/"
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Referer": "https://music.163.com/",
+            "Origin": "https://music.163.com"
         };
     }
 
-    function _fetchMusixmatchToken(callback) {
-        if (_musixmatchToken) {
-            callback(_musixmatchToken);
-            return;
-        }
-
-        var url = "https://apic-desktop.musixmatch.com/ws/1.1/token.get"
-            + "?user_language=en"
-            + "&app_id=web-desktop-app-v1.0"
-            + "&t=" + Date.now();
-
-        console.info("[MusicLyrics] Musixmatch: fetching token…");
-
-        root._cancelActiveFetch = _xhrGet(url, 15000, function (responseText, httpStatus) {
-            try {
-                var result = JSON.parse(responseText);
-                var body = result.message ? result.message.body : undefined;
-                var token = body ? body.user_token : undefined;
-                if (token && token !== "undefined" && token !== "") {
-                    root._musixmatchToken = token;
-                    pluginService.savePluginData("musicLyrics", "musixmatchToken", token)
-                    console.info("[MusicLyrics] Musixmatch: token acquired");
-                    callback(token);
-                } else {
-                    console.warn("[MusicLyrics] Musixmatch: empty token in response");
-                    callback(null);
-                }
-            } catch (e) {
-                console.warn("[MusicLyrics] Musixmatch: failed to parse token response — " + e);
-                callback(null);
-            }
-        }, function (errMsg) {
-            console.warn("[MusicLyrics] Musixmatch: token request failed — " + errMsg);
-            callback(null);
-        }, _musixmatchHeaders());
-    }
-
-    function _fetchFromMusixmatch(expectedTitle, expectedArtist, _tokenRetried) {
+    function _fetchFromNetease(expectedTitle, expectedArtist) {
         if (lyricStatus === lyricState.synced) {
-            musixmatchStatus = status.skippedFound;
-            console.info("[MusicLyrics] Musixmatch: skipped (synced lyrics already found)");
+            neteaseStatus = status.skippedFound;
+            console.info("[MusicLyrics] NetEase: skipped (synced lyrics already found)");
             return;
         }
 
-        musixmatchStatus = status.searching;
-        console.info("[MusicLyrics] Musixmatch: searching for \"" + expectedTitle + "\" by " + expectedArtist);
+        neteaseStatus = status.searching;
+        var query = expectedArtist ? (expectedTitle + " " + expectedArtist) : expectedTitle;
+        console.info("[MusicLyrics] NetEase: searching for \"" + expectedTitle + "\" by " + expectedArtist);
 
-        _fetchMusixmatchToken(function (token) {
-            if (!token) {
-                root._setMusixmatchNotFound(status.error);
-                console.warn("[MusicLyrics] Musixmatch: no token available, cannot search");
+        // POST search — body is application/x-www-form-urlencoded
+        var searchUrl = "https://music.163.com/api/search/get";
+        var body = "s=" + encodeURIComponent(query)
+            + "&type=1&offset=0&total=false&limit=5";
+
+        var cancelled = false;
+        var xhr = new XMLHttpRequest();
+        var done = false;
+
+        xhrTimeoutTimer.stop();
+        xhrTimeoutTimer.interval = 20000;
+        xhrTimeoutTimer.onTimeout = function () {
+            if (!done && !cancelled) {
+                done = true;
+                xhr.abort();
+                root.neteaseStatus = status.error;
+                console.warn("[MusicLyrics] NetEase: search request timed out");
+                root._fetchFromLrclib(expectedTitle, expectedArtist);
+            }
+        };
+        xhrTimeoutTimer.start();
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE || done || cancelled)
+                return;
+            done = true;
+            xhrTimeoutTimer.stop();
+
+            // Guard: track may have changed
+            if (expectedTitle !== root._lastFetchedTrack || expectedArtist !== root._lastFetchedArtist)
+                return;
+
+            var rawData = (xhr.responseText || "").trim();
+            if (rawData.length === 0 || xhr.status === 0) {
+                root.neteaseStatus = status.error;
+                console.warn("[MusicLyrics] NetEase: empty/network error on search (HTTP " + xhr.status + ")");
+                root._fetchFromLrclib(expectedTitle, expectedArtist);
                 return;
             }
 
-            // Guard: track may have changed
-            if (expectedTitle !== root._lastFetchedTrack || expectedArtist !== root._lastFetchedArtist)
-                return;
-
-            var trackUrl = "https://apic-desktop.musixmatch.com/ws/1.1/matcher.track.get"
-                + "?q_track=" + encodeURIComponent(expectedTitle)
-                + "&q_artist=" + encodeURIComponent(expectedArtist)
-                + "&page_size=1&page=1"
-                + "&app_id=web-desktop-app-v1.0"
-                + "&usertoken=" + encodeURIComponent(token)
-                + "&t=" + Date.now();
-
-            root._cancelActiveFetch = root._xhrGet(trackUrl, 15000, function (responseText, httpStatus) {
-                try {
-                    var result = JSON.parse(responseText);
-                    var headerStatusCode = result.message && result.message.header ? result.message.header.status_code : 0;
-                    if (headerStatusCode === 401 || headerStatusCode === 402) {
-                        console.warn("[MusicLyrics] Musixmatch: auth error (status_code=" + headerStatusCode + ") in matcher.track.get");
-                        if (!_tokenRetried) {
-                            root._musixmatchToken = "";
-                            console.info("[MusicLyrics] Musixmatch: token cleared, retrying with fresh token…");
-                            root._fetchFromMusixmatch(expectedTitle, expectedArtist, true);
-                        } else {
-                            root._setMusixmatchNotFound(status.error);
-                            console.warn("[MusicLyrics] Musixmatch: auth error persists after token refresh");
-                        }
-                        return;
-                    }
-                    var track = result.message.body.track;
-                    var trackId = track.track_id;
-                    if (!trackId) {
-                        root._setMusixmatchNotFound(status.notFound);
-                        console.info("[MusicLyrics] ✗ Musixmatch: no track found for \"" + expectedTitle + "\"");
-                        return;
-                    }
-
-                    var hasSubtitles = track.has_subtitles === 1;
-                    var hasLyrics = track.has_lyrics === 1;
-                    console.info("[MusicLyrics] Musixmatch: track matched (id: " + trackId + ", has_subtitles: " + hasSubtitles + ", has_lyrics: " + hasLyrics + ")");
-
-                    if (!hasSubtitles) {
-                        root._setMusixmatchNotFound(hasLyrics ? status.skippedPlain : status.notFound);
-                        console.info("[MusicLyrics] ✗ Musixmatch: track has no synced lyrics (has_subtitles=0) for \"" + expectedTitle + "\"");
-                        return;
-                    }
-
-                    console.info("[MusicLyrics] Musixmatch: fetching synced lyrics…");
-                    root._fetchMusixmatchLyrics(trackId, token, expectedTitle, expectedArtist);
-                } catch (e) {
-                    root._setMusixmatchNotFound(status.error);
-                    console.warn("[MusicLyrics] Musixmatch: failed to parse track response — " + e);
+            try {
+                var result = JSON.parse(rawData);
+                var songs = result.result && result.result.songs;
+                if (!songs || songs.length === 0) {
+                    root.neteaseStatus = status.notFound;
+                    console.info("[MusicLyrics] ✗ NetEase: no songs found for \"" + expectedTitle + "\"");
+                    root._fetchFromLrclib(expectedTitle, expectedArtist);
+                    return;
                 }
-            }, function (errMsg) {
-                root._setMusixmatchNotFound(status.error);
-                console.warn("[MusicLyrics] Musixmatch: track request failed — " + errMsg);
-            }, _musixmatchHeaders());
-        });
+
+                // Prefer exact title match (case-insensitive), fall back to first result
+                var songId = songs[0].id;
+                var titleLower = expectedTitle.toLowerCase();
+                for (var i = 0; i < songs.length; i++) {
+                    if (songs[i].name && songs[i].name.toLowerCase() === titleLower) {
+                        songId = songs[i].id;
+                        break;
+                    }
+                }
+
+                console.info("[MusicLyrics] NetEase: song matched (id: " + songId + "), fetching lyrics…");
+                root._fetchNeteaseLyrics(songId, expectedTitle, expectedArtist);
+            } catch (e) {
+                root.neteaseStatus = status.error;
+                console.warn("[MusicLyrics] NetEase: failed to parse search response — " + e);
+                console.warn("[MusicLyrics] NetEase: raw data: " + rawData.substring(0, 200));
+                root._fetchFromLrclib(expectedTitle, expectedArtist);
+            }
+        };
+
+        xhr.open("POST", searchUrl);
+        var hdrs = _neteaseHeaders();
+        for (var k in hdrs)
+            xhr.setRequestHeader(k, hdrs[k]);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.send(body);
+
+        root._cancelActiveFetch = function cancel() {
+            cancelled = true;
+            xhrTimeoutTimer.stop();
+            xhr.abort();
+            console.info("[MusicLyrics] ⊘ NetEase search XHR cancelled");
+        };
     }
 
-    function _fetchMusixmatchLyrics(trackId, token, expectedTitle, expectedArtist, _tokenRetried) {
-        var url = "https://apic-desktop.musixmatch.com/ws/1.1/track.subtitle.get"
-            + "?track_id=" + trackId
-            + "&subtitle_format=lrc"
-            + "&app_id=web-desktop-app-v1.0"
-            + "&usertoken=" + encodeURIComponent(token)
-            + "&t=" + Date.now();
+    function _fetchNeteaseLyrics(songId, expectedTitle, expectedArtist) {
+        // lv=-1 requests the best available lyric version; tv=-1 requests translation
+        var url = "https://music.163.com/api/song/lyric?lv=-1&tv=-1&id=" + songId;
 
-        root._cancelActiveFetch = _xhrGet(url, 15000, function (responseText, httpStatus) {
+        root._cancelActiveFetch = _xhrGet(url, 20000, function (responseText, httpStatus) {
             // Guard: track may have changed
             if (expectedTitle !== root._lastFetchedTrack || expectedArtist !== root._lastFetchedArtist)
                 return;
 
+            var rawData = (responseText || "").trim();
+            if (rawData.length === 0) {
+                root.neteaseStatus = status.error;
+                console.warn("[MusicLyrics] NetEase: empty lyrics response (HTTP " + httpStatus + ")");
+                root._fetchFromLrclib(expectedTitle, expectedArtist);
+                return;
+            }
+
             try {
-                var result = JSON.parse(responseText);
-                var headerStatusCode = result.message && result.message.header ? result.message.header.status_code : 0;
-                if (headerStatusCode === 401 || headerStatusCode === 402) {
-                    console.warn("[MusicLyrics] Musixmatch: auth error (status_code=" + headerStatusCode + ") in track.subtitle.get");
-                    if (!_tokenRetried) {
-                        root._musixmatchToken = "";
-                        console.info("[MusicLyrics] Musixmatch: token cleared, retrying with fresh token…");
-                        root._fetchFromMusixmatch(expectedTitle, expectedArtist, true);
-                    } else {
-                        root._setMusixmatchNotFound(status.error);
-                        console.warn("[MusicLyrics] Musixmatch: auth error persists after token refresh");
-                    }
-                    return;
-                }
-                var subtitleBody = result.message.body.subtitle.subtitle_body;
-                if (!subtitleBody || subtitleBody.trim() === "") {
-                    root._setMusixmatchNotFound(status.notFound);
-                    console.info("[MusicLyrics] ✗ Musixmatch: no synced lyrics for \"" + expectedTitle + "\"");
+                var result = JSON.parse(rawData);
+
+                // nolyrics flag means instrumental
+                if (result.nolyrics) {
+                    root.neteaseStatus = status.notFound;
+                    console.info("[MusicLyrics] ✗ NetEase: instrumental track, no lyrics for \"" + expectedTitle + "\"");
+                    root._fetchFromLrclib(expectedTitle, expectedArtist);
                     return;
                 }
 
-                var lines = root.parseLrc(subtitleBody);
+                var lrcText = result.lrc && result.lrc.lyric;
+                if (!lrcText || lrcText.trim() === "") {
+                    root.neteaseStatus = status.notFound;
+                    console.info("[MusicLyrics] ✗ NetEase: no lyrics content for \"" + expectedTitle + "\"");
+                    root._fetchFromLrclib(expectedTitle, expectedArtist);
+                    return;
+                }
+
+                var lines = root.parseLrc(lrcText);
                 if (lines.length === 0) {
-                    root._setMusixmatchNotFound(status.notFound);
-                    console.info("[MusicLyrics] ✗ Musixmatch: failed to parse LRC for \"" + expectedTitle + "\"");
+                    // Has text but no timestamps — plain lyrics only
+                    root.neteaseStatus = status.skippedPlain;
+                    console.info("[MusicLyrics] ✗ NetEase: only plain/unsynced lyrics for \"" + expectedTitle + "\" (skipping)");
+                    root._fetchFromLrclib(expectedTitle, expectedArtist);
                     return;
                 }
 
                 root.lyricsLines = lines;
-                root.musixmatchStatus = status.found;
+                root.neteaseStatus = status.found;
                 root.lrclibStatus = status.skippedFound;
                 root.lyricStatus = lyricState.synced;
-                root.lyricSource = lyricSrc.musixmatch;
-                console.info("[MusicLyrics] ✓ Musixmatch: synced lyrics found (" + lines.length + " lines) for \"" + expectedTitle + "\"");
+                root.lyricSource = lyricSrc.netease;
+                console.info("[MusicLyrics] ✓ NetEase: synced lyrics found (" + lines.length + " lines) for \"" + expectedTitle + "\"");
                 root._cancelActiveFetch = null;
                 if (root.cachingEnabled)
-                    root.writeToCache(expectedTitle, expectedArtist, lines, lyricSrc.musixmatch);
+                    root.writeToCache(expectedTitle, expectedArtist, lines, lyricSrc.netease);
             } catch (e) {
-                root._setMusixmatchNotFound(status.error);
-                console.warn("[MusicLyrics] Musixmatch: failed to parse lyrics response — " + e);
+                root.neteaseStatus = status.error;
+                console.warn("[MusicLyrics] NetEase: failed to parse lyrics response — " + e);
+                console.warn("[MusicLyrics] NetEase: raw data: " + rawData.substring(0, 200));
+                root._fetchFromLrclib(expectedTitle, expectedArtist);
             }
         }, function (errMsg) {
-            root._setMusixmatchNotFound(status.error);
-            console.warn("[MusicLyrics] Musixmatch: lyrics request failed — " + errMsg);
-        }, _musixmatchHeaders());
+            root.neteaseStatus = status.error;
+            console.warn("[MusicLyrics] NetEase: lyrics request failed — " + errMsg);
+            root._fetchFromLrclib(expectedTitle, expectedArtist);
+        }, _neteaseHeaders());
     }
 
     // -------------------------------------------------------------------------
@@ -946,7 +931,7 @@ PluginComponent {
                     }
 
                     StyledText {
-                        text: root.lyricSource === lyricSrc.navidrome ? "Navidrome" : root.lyricSource === lyricSrc.lrclib ? "lrclib" : root.lyricSource === lyricSrc.musixmatch ? "Musixmatch" : ""
+                        text: root.lyricSource === lyricSrc.navidrome ? "Navidrome" : root.lyricSource === lyricSrc.lrclib ? "lrclib" : root.lyricSource === lyricSrc.netease ? "NetEase" : ""
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.background
                         anchors.verticalCenter: parent.verticalCenter
@@ -959,7 +944,7 @@ PluginComponent {
 
             StyledText {
                 text: root.currentLyricText
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontSizeMedium
                 color: Theme.surfaceText
                 anchors.verticalCenter: parent.verticalCenter
                 maximumLineCount: 1
@@ -1234,8 +1219,8 @@ PluginComponent {
                         SourceCard {
                             width: parent.width
                             icon: "music_note"
-                            label: "Musixmatch"
-                            sourceStatus: root.musixmatchStatus
+                            label: "NetEase"
+                            sourceStatus: root.neteaseStatus
                         }
 
                         SourceCard {
